@@ -50,3 +50,21 @@ Formulas are Ruby classes in `Formula/`. For Python packages using virtualenv:
 
 - **tests.yml**: Runs `brew test-bot` on push/PR across Ubuntu and macOS (Intel + ARM)
 - **publish.yml**: Pulls bottles when PR has `pr-pull` label and pushes to main
+- **update-formulas.yml**: Checks PyPI for formula updates weekly, creates PRs for outdated packages
+
+## Update Scripts
+
+Scripts in `scripts/` for automated formula updates:
+
+```bash
+# Check all formulas for available updates
+python scripts/check_updates.py
+
+# Check a specific formula
+python scripts/check_updates.py --formula ossin
+
+# Update formulas from a JSON updates file
+python scripts/update_formulas.py --updates-file updates.json
+```
+
+These scripts query PyPI, compare versions, and can update formula files including all resource blocks (dependencies).
