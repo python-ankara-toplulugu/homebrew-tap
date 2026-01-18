@@ -51,6 +51,16 @@ Formulas are Ruby classes in `Formula/`. For Python packages using virtualenv:
 - **tests.yml**: Runs `brew test-bot` on push/PR across Ubuntu and macOS (Intel + ARM)
 - **publish.yml**: Pulls bottles when PR has `pr-pull` label and pushes to main
 - **update-formulas.yml**: Checks PyPI for formula updates weekly, creates PRs for outdated packages
+- **update-formula-dispatch.yml**: Receives `repository_dispatch` events from package repos to trigger immediate updates
+
+## Triggering Updates from Package Repos
+
+Package repos can trigger immediate formula updates after PyPI publish using `repository_dispatch`. See `examples/update-homebrew-formula.yml` for a workflow template.
+
+Setup:
+1. Create a PAT with `repo` scope and write access to this repo
+2. Add it as `HOMEBREW_TAP_TOKEN` secret in the package repo
+3. Copy the example workflow to the package repo
 
 ## Update Scripts
 

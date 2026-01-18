@@ -1,0 +1,81 @@
+name: Update Formula (Dispatch)
+
+# Triggered by package repos after PyPI publish
+on:
+  repository_dispatch:
+    types: [update-formula]
+
+# Expected payload:
+# {
+#   "formula": "ossin",           # Formula name (required)
+#   "version": "0.2.0",           # New version (optional, will check PyPI if not provided)
+#   "pypi_name": "ossin"          # PyPI package name (optional, defaults to formula name)
+# }
+
+jobs:
+  update:
+    name: Update ${{ github.event.client_payload.formula }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate payload
+        run: |
+          if [ -z "${{ github.event.client_payload.formula }}" ]; then
+            echo "Error: 'formula' is required in client_payload"
+            exit 1
+          fi
+
+          formula="${{ github.event.client_payload.formula }}"
+          if [ ! -f "Formula/${formula}.rb" ]; then
+            echo "Error: Formula '${formula}' not found"
+            exit 1
+          fi
+
+          echo "Updating formula: ${formula}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests packaging
+
+      - name: Check for update
+        id: check
+        run: |
+          formula="${{ github.event.client_payload.formula }}"
+          python scripts/check_updates.py --formula "$formula" --output-json updates.json
+
+          if [ -f updates.json ] && [ "$(cat updates.json)" != "[]" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            version=$(python -c "import json; print(json.load(open('updates.json'))[0]['latest_version'])")
+            echo "version=$version" >> $GITHUB_OUTPUT
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "Formula is already up to date"
+          fi
+
+      - name: Update formula
+        if: steps.check.outputs.has_update == 'true'
+        run: |
+          python scripts/update_formulas.py --updates-file updates.json
+
+      - name: Create Pull Request
+        if: steps.check.outputs.has_update == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(${{ github.event.client_payload.formula }}): update to ${{ steps.check.outputs.version }}"
+          title: "chore(${{ github.event.client_payload.formula }}): update to ${{ steps.check.outputs.version }}"
+          body: |
+            Automated update triggered by package release.
+
+            - **Formula**: `${{ github.event.client_payload.formula }}`
+            - **Version**: `${{ steps.check.outputs.version }}`
+
+            ---
+            *Triggered by repository_dispatch from package repo.*
+          branch: auto-update/${{ github.event.client_payload.formula }}
+          delete-branch: true

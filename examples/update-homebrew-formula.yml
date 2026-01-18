@@ -1,0 +1,48 @@
+# Example workflow for package repos to trigger Homebrew formula update
+# Copy this to your package repo: .github/workflows/update-homebrew-formula.yml
+#
+# Prerequisites:
+# 1. Create a PAT with 'repo' scope that has write access to homebrew-tap
+# 2. Add it as a secret named HOMEBREW_TAP_TOKEN in your package repo
+#
+# This workflow triggers after a successful PyPI publish.
+
+name: Update Homebrew Formula
+
+on:
+  # Trigger after release is published
+  release:
+    types: [published]
+
+  # Or trigger manually
+  workflow_dispatch:
+
+jobs:
+  update-formula:
+    name: Trigger formula update
+    runs-on: ubuntu-latest
+
+    # Only run if the release workflow (PyPI publish) succeeded
+    # Uncomment if you want to wait for another workflow
+    # needs: [publish]
+
+    steps:
+      - name: Trigger homebrew-tap update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: python-ankara-toplulugu/homebrew-tap
+          event-type: update-formula
+          client-payload: |
+            {
+              "formula": "${{ github.event.repository.name }}",
+              "version": "${{ github.event.release.tag_name }}"
+            }
+
+      - name: Summary
+        run: |
+          echo "Triggered Homebrew formula update for ${{ github.event.repository.name }}"
+          echo "Version: ${{ github.event.release.tag_name }}"
+          echo ""
+          echo "Check the homebrew-tap repo for the PR:"
+          echo "https://github.com/python-ankara-toplulugu/homebrew-tap/pulls"
