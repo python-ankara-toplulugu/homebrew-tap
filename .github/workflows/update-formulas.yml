@@ -1,5 +1,4 @@
 name: Update Formulas
-
 on:
   schedule:
     # Run weekly on Mondays at 9:00 UTC
@@ -15,7 +14,6 @@ on:
         required: false
         type: boolean
         default: false
-
 jobs:
   check-updates:
     name: Check for updates
@@ -25,40 +23,52 @@ jobs:
       has_updates: ${{ steps.check.outputs.has_updates }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests packaging
-
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Tap this repository
+        run: |
+          brew tap ${{ github.repository }} "$(pwd)"
       - name: Check for formula updates
         id: check
         run: |
-          python scripts/check_updates.py \
-            ${{ inputs.formula && format('--formula {0}', inputs.formula) || '' }} \
-            --output-json updates.json
-
-          if [ -f updates.json ]; then
-            updates=$(cat updates.json)
-            echo "updates=$updates" >> $GITHUB_OUTPUT
-
-            # Check if there are any updates
-            count=$(echo "$updates" | python -c "import sys, json; print(len(json.load(sys.stdin)))")
-            if [ "$count" -gt 0 ]; then
-              echo "has_updates=true" >> $GITHUB_OUTPUT
-              echo "Found $count formula(s) with updates available"
-            else
-              echo "has_updates=false" >> $GITHUB_OUTPUT
-              echo "All formulas are up to date"
-            fi
+          # Get list of formulas to check
+          if [ -n "${{ inputs.formula }}" ]; then
+            formulas="${{ inputs.formula }}"
           else
-            echo "has_updates=false" >> $GITHUB_OUTPUT
-            echo "updates=[]" >> $GITHUB_OUTPUT
+            formulas=$(ls Formula/*.rb | xargs -I {} basename {} .rb | tr '\n' ' ')
           fi
 
+          echo "Checking formulas: $formulas"
+
+          # Use brew livecheck to check for updates
+          updates_json="[]"
+          has_updates="false"
+
+          for formula in $formulas; do
+            echo "Checking $formula..."
+
+            # Run livecheck and capture output
+            livecheck_output=$(brew livecheck --json "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}" 2>/dev/null || echo "[]")
+
+            # Check if there's an update (version.outdated == true)
+            is_outdated=$(echo "$livecheck_output" | jq -r '.[0].version.outdated // false')
+
+            if [ "$is_outdated" = "true" ]; then
+              current=$(echo "$livecheck_output" | jq -r '.[0].version.current')
+              latest=$(echo "$livecheck_output" | jq -r '.[0].version.latest')
+              echo "  Update available: $current -> $latest"
+
+              # Add to updates array
+              updates_json=$(echo "$updates_json" | jq --arg f "$formula" --arg c "$current" --arg l "$latest" \
+                '. + [{"formula": $f, "current_version": $c, "latest_version": $l}]')
+              has_updates="true"
+            else
+              echo "  Up to date"
+            fi
+          done
+
+          echo "updates=$updates_json" >> $GITHUB_OUTPUT
+          echo "has_updates=$has_updates" >> $GITHUB_OUTPUT
   update-formulas:
     name: Update formulas
     runs-on: ubuntu-latest
@@ -66,20 +76,35 @@ jobs:
     if: needs.check-updates.outputs.has_updates == 'true' && inputs.dry_run != true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests packaging
-
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Tap this repository
+        run: |
+          brew tap ${{ github.repository }} "$(pwd)"
       - name: Update formulas
         run: |
-          echo '${{ needs.check-updates.outputs.updates }}' > updates.json
-          python scripts/update_formulas.py --updates-file updates.json
+          updates='${{ needs.check-updates.outputs.updates }}'
 
+          echo "$updates" | jq -c '.[]' | while read -r update; do
+            formula=$(echo "$update" | jq -r '.formula')
+            latest=$(echo "$update" | jq -r '.latest_version')
+
+            echo "Updating $formula to $latest..."
+
+            # Use brew bump-formula-pr to update the formula (without creating PR)
+            # This updates URL, sha256, and can update resources
+            brew bump-formula-pr \
+              --no-audit \
+              --no-browse \
+              --write-only \
+              --version="$latest" \
+              "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}"
+
+            # Update Python resources (may fail for non-Python packages)
+            brew update-python-resources \
+              "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}" \
+              || echo "Note: update-python-resources failed for $formula (may not be a Python package)"
+          done
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
@@ -90,7 +115,9 @@ jobs:
             Automated formula version updates.
 
             Updates:
+            ```json
             ${{ needs.check-updates.outputs.updates }}
+            ```
 
             ---
             *This PR was automatically created by the update-formulas workflow.*

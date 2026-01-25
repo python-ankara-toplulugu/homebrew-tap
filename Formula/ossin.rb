@@ -13,6 +13,11 @@ class Ossin < Formula
   # version "0.1.1"
   license "MIT"
 
+  livecheck do
+    url :stable
+    strategy :pypi
+  end
+
   depends_on "python@3.14"
 
   resource "click" do

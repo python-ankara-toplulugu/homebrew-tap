@@ -1,0 +1,5 @@
+[tools]
+action-validator = "latest"
+actionlint = "latest"
+yamlfmt = "latest"
+yamllint = "latest"
