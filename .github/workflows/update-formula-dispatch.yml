@@ -42,8 +42,8 @@ jobs:
 
           if [ -n "$provided_version" ]; then
             # Version provided in payload, use it directly
-            echo "version=$provided_version" >> $GITHUB_OUTPUT
-            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "version=$provided_version" >> "$GITHUB_OUTPUT"
+            echo "has_update=true" >> "$GITHUB_OUTPUT"
             echo "Using provided version: $provided_version"
           else
             # Use livecheck to find the latest version
@@ -52,11 +52,11 @@ jobs:
 
             if [ "$is_outdated" = "true" ]; then
               latest=$(echo "$livecheck_output" | jq -r '.[0].version.latest')
-              echo "version=$latest" >> $GITHUB_OUTPUT
-              echo "has_update=true" >> $GITHUB_OUTPUT
+              echo "version=$latest" >> "$GITHUB_OUTPUT"
+              echo "has_update=true" >> "$GITHUB_OUTPUT"
               echo "Found update: $latest"
             else
-              echo "has_update=false" >> $GITHUB_OUTPUT
+              echo "has_update=false" >> "$GITHUB_OUTPUT"
               echo "Formula is already up to date"
             fi
           fi

@@ -67,8 +67,8 @@ jobs:
             fi
           done
 
-          echo "updates=$updates_json" >> $GITHUB_OUTPUT
-          echo "has_updates=$has_updates" >> $GITHUB_OUTPUT
+          echo "updates=$updates_json" >> "$GITHUB_OUTPUT"
+          echo "has_updates=$has_updates" >> "$GITHUB_OUTPUT"
   update-formulas:
     name: Update formulas
     runs-on: ubuntu-latest
