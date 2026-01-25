@@ -1,7 +1,7 @@
 class Ossin < Formula
   include Language::Python::Virtualenv
 
-  desc "What is OS's sin? 🤔 A beautiful system information utility that displays basic information about your operating system, Python environment, and platform details using Rich for stunning terminal output."
+  desc "System information utility with beautiful terminal output"
   homepage "https://github.com/python-ankara-toplulugu/ossin"
   # GitHub Sources
   # url "https://github.com/python-ankara-toplulugu/ossin/archive/refs/tags/0.1.1.tar.gz"

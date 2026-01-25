@@ -35,7 +35,7 @@ jobs:
           if [ -n "${{ inputs.formula }}" ]; then
             formulas="${{ inputs.formula }}"
           else
-            formulas=$(ls Formula/*.rb | xargs -I {} basename {} .rb | tr '\n' ' ')
+            formulas=$(find Formula -name '*.rb' -exec basename {} .rb \; | tr '\n' ' ')
           fi
 
           echo "Checking formulas: $formulas"
@@ -48,7 +48,7 @@ jobs:
             echo "Checking $formula..."
 
             # Run livecheck and capture output
-            livecheck_output=$(brew livecheck --json "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}" 2>/dev/null || echo "[]")
+            livecheck_output=$(brew livecheck --json "${{ github.repository_owner }}/$(basename "${{ github.repository }}")/${formula}" 2>/dev/null || echo "[]")
 
             # Check if there's an update (version.outdated == true)
             is_outdated=$(echo "$livecheck_output" | jq -r '.[0].version.outdated // false')
@@ -98,11 +98,11 @@ jobs:
               --no-browse \
               --write-only \
               --version="$latest" \
-              "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}"
+              "${{ github.repository_owner }}/$(basename "${{ github.repository }}")/${formula}"
 
             # Update Python resources (may fail for non-Python packages)
             brew update-python-resources \
-              "${{ github.repository_owner }}/$(basename ${{ github.repository }})/${formula}" \
+              "${{ github.repository_owner }}/$(basename "${{ github.repository }}")/${formula}" \
               || echo "Note: update-python-resources failed for $formula (may not be a Python package)"
           done
       - name: Create Pull Request
