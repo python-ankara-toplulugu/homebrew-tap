@@ -10,10 +10,11 @@ on:
 # }
 jobs:
   update:
+    timeout-minutes: 20
     name: Update ${{ github.event.client_payload.formula }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Validate payload
         run: |
           if [ -z "${{ github.event.client_payload.formula }}" ]; then
@@ -82,7 +83,7 @@ jobs:
             || echo "Note: update-python-resources failed for $formula (may not be a Python package)"
       - name: Create Pull Request
         if: steps.check.outputs.has_update == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(${{ github.event.client_payload.formula }}): update to ${{ steps.check.outputs.version }}"

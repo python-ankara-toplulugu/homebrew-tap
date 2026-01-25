@@ -5,6 +5,7 @@ on:
       - labeled
 jobs:
   pr-pull:
+    timeout-minutes: 15
     if: contains(github.event.pull_request.labels.*.name, 'pr-pull')
     runs-on: ubuntu-22.04
     permissions:

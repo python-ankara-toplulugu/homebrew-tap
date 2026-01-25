@@ -16,13 +16,14 @@ on:
         default: false
 jobs:
   check-updates:
+    timeout-minutes: 10
     name: Check for updates
     runs-on: ubuntu-latest
     outputs:
       updates: ${{ steps.check.outputs.updates }}
       has_updates: ${{ steps.check.outputs.has_updates }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Tap this repository
@@ -70,12 +71,13 @@ jobs:
           echo "updates=$updates_json" >> "$GITHUB_OUTPUT"
           echo "has_updates=$has_updates" >> "$GITHUB_OUTPUT"
   update-formulas:
+    timeout-minutes: 20
     name: Update formulas
     runs-on: ubuntu-latest
     needs: check-updates
     if: needs.check-updates.outputs.has_updates == 'true' && inputs.dry_run != true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Tap this repository
@@ -106,7 +108,7 @@ jobs:
               || echo "Note: update-python-resources failed for $formula (may not be a Python package)"
           done
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update formula versions"
