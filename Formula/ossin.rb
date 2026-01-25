@@ -1,7 +1,7 @@
 class Ossin < Formula
   include Language::Python::Virtualenv
 
-  desc "What is OS's sin? 🤔 A beautiful system information utility that displays basic information about your operating system, Python environment, and platform details using Rich for stunning terminal output."
+  desc "System information utility with beautiful terminal output"
   homepage "https://github.com/python-ankara-toplulugu/ossin"
   # GitHub Sources
   # url "https://github.com/python-ankara-toplulugu/ossin/archive/refs/tags/0.1.1.tar.gz"
@@ -12,6 +12,11 @@ class Ossin < Formula
   sha256 "ad6dbf0389ca8472d099d23245202715c6eb883ed9d200f03897c443f94f2982"
   # version "0.1.1"
   license "MIT"
+
+  livecheck do
+    url :stable
+    strategy :pypi
+  end
 
   depends_on "python@3.14"
 

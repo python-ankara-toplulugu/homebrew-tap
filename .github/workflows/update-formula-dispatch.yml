@@ -1,24 +1,20 @@
 name: Update Formula (Dispatch)
-
 # Triggered by package repos after PyPI publish
 on:
   repository_dispatch:
     types: [update-formula]
-
 # Expected payload:
 # {
 #   "formula": "ossin",           # Formula name (required)
-#   "version": "0.2.0",           # New version (optional, will check PyPI if not provided)
-#   "pypi_name": "ossin"          # PyPI package name (optional, defaults to formula name)
+#   "version": "0.2.0"            # New version (optional, will check PyPI if not provided)
 # }
-
 jobs:
   update:
+    timeout-minutes: 20
     name: Update ${{ github.event.client_payload.formula }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Validate payload
         run: |
           if [ -z "${{ github.event.client_payload.formula }}" ]; then
@@ -33,38 +29,61 @@ jobs:
           fi
 
           echo "Updating formula: ${formula}"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests packaging
-
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Tap this repository
+        run: |
+          brew tap ${{ github.repository }} "$(pwd)"
       - name: Check for update
         id: check
         run: |
           formula="${{ github.event.client_payload.formula }}"
-          python scripts/check_updates.py --formula "$formula" --output-json updates.json
+          provided_version="${{ github.event.client_payload.version }}"
+          tap_name="${{ github.repository_owner }}/$(basename "${{ github.repository }}")"
 
-          if [ -f updates.json ] && [ "$(cat updates.json)" != "[]" ]; then
-            echo "has_update=true" >> $GITHUB_OUTPUT
-            version=$(python -c "import json; print(json.load(open('updates.json'))[0]['latest_version'])")
-            echo "version=$version" >> $GITHUB_OUTPUT
+          if [ -n "$provided_version" ]; then
+            # Version provided in payload, use it directly
+            echo "version=$provided_version" >> "$GITHUB_OUTPUT"
+            echo "has_update=true" >> "$GITHUB_OUTPUT"
+            echo "Using provided version: $provided_version"
           else
-            echo "has_update=false" >> $GITHUB_OUTPUT
-            echo "Formula is already up to date"
-          fi
+            # Use livecheck to find the latest version
+            livecheck_output=$(brew livecheck --json "${tap_name}/${formula}" 2>/dev/null || echo "[]")
+            is_outdated=$(echo "$livecheck_output" | jq -r '.[0].version.outdated // false')
 
+            if [ "$is_outdated" = "true" ]; then
+              latest=$(echo "$livecheck_output" | jq -r '.[0].version.latest')
+              echo "version=$latest" >> "$GITHUB_OUTPUT"
+              echo "has_update=true" >> "$GITHUB_OUTPUT"
+              echo "Found update: $latest"
+            else
+              echo "has_update=false" >> "$GITHUB_OUTPUT"
+              echo "Formula is already up to date"
+            fi
+          fi
       - name: Update formula
         if: steps.check.outputs.has_update == 'true'
         run: |
-          python scripts/update_formulas.py --updates-file updates.json
+          formula="${{ github.event.client_payload.formula }}"
+          version="${{ steps.check.outputs.version }}"
+          tap_name="${{ github.repository_owner }}/$(basename "${{ github.repository }}")"
 
+          echo "Updating $formula to $version..."
+
+          # Use brew bump-formula-pr to update the formula (without creating PR)
+          brew bump-formula-pr \
+            --no-audit \
+            --no-browse \
+            --write-only \
+            --version="$version" \
+            "${tap_name}/${formula}"
+
+          # Update Python resources (may fail for non-Python packages)
+          brew update-python-resources "${tap_name}/${formula}" \
+            || echo "Note: update-python-resources failed for $formula (may not be a Python package)"
       - name: Create Pull Request
         if: steps.check.outputs.has_update == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(${{ github.event.client_payload.formula }}): update to ${{ steps.check.outputs.version }}"
