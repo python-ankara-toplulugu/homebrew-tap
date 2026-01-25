@@ -43,13 +43,21 @@ A "push" model where package repos notify the tap immediately after publishing.
 
 Package repos can trigger immediate formula updates after PyPI publish.
 
-**Setup:**
+<details>
+<summary><strong>For Humans</strong></summary>
+
+##### Option A: Let an LLM do it
+
+Copy and paste this prompt into your AI coding assistant:
+
+> Set up automatic Homebrew formula updates for this repository.
+> Follow the instructions at: https://github.com/python-ankara-toplulugu/homebrew-tap#triggering-from-package-repos
+
+##### Option B: Manual Setup
 
 1. Create a PAT with `repo` scope and write access to this repo
 2. Add it as `HOMEBREW_TAP_TOKEN` secret in the package repo
 3. Copy the workflow below to your package repo at `.github/workflows/update-homebrew-formula.yml`
-
-**Example Workflow:**
 
 ```yaml
 # Triggers Homebrew formula update after a release is published
@@ -87,6 +95,60 @@ jobs:
           echo "Check the homebrew-tap repo for the PR:"
           echo "https://github.com/python-ankara-toplulugu/homebrew-tap/pulls"
 ```
+
+</details>
+
+<details>
+<summary><strong>For LLM Agents</strong></summary>
+
+**Prerequisites:**
+
+- A GitHub PAT with `repo` scope stored as `HOMEBREW_TAP_TOKEN` in the repository secrets
+
+**Instructions:**
+
+1. Create `.github/workflows/update-homebrew-formula.yml` with this content:
+
+```yaml
+name: Update Homebrew Formula
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+jobs:
+  update-formula:
+    name: Trigger formula update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger homebrew-tap update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: python-ankara-toplulugu/homebrew-tap
+          event-type: update-formula
+          client-payload: |
+            {
+              "formula": "${{ github.event.repository.name }}",
+              "version": "${{ github.event.release.tag_name }}"
+            }
+      - name: Summary
+        run: |
+          echo "Triggered Homebrew formula update for ${{ github.event.repository.name }}"
+          echo "Version: ${{ github.event.release.tag_name }}"
+          echo ""
+          echo "Check the homebrew-tap repo for the PR:"
+          echo "https://github.com/python-ankara-toplulugu/homebrew-tap/pulls"
+```
+
+2. Verify the file exists and has correct YAML syntax
+
+**Important:**
+
+- `formula` in the payload should match the repository name (e.g., "ossin" for ossin repo)
+- `version` is extracted from the release tag (e.g., "v1.0.0" or "1.0.0")
+- The workflow triggers on `release: published` events
+
+</details>
 
 ### Flow
 
