@@ -26,9 +26,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
-      - name: Tap this repository
-        run: |
-          brew tap ${{ github.repository }} "$(pwd)"
       - name: Check for formula updates
         id: check
         run: |
@@ -80,9 +77,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
-      - name: Tap this repository
-        run: |
-          brew tap ${{ github.repository }} "$(pwd)"
       - name: Update formulas
         run: |
           updates='${{ needs.check-updates.outputs.updates }}'
