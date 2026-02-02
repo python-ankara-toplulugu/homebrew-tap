@@ -31,9 +31,6 @@ jobs:
           echo "Updating formula: ${formula}"
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
-      - name: Tap this repository
-        run: |
-          brew tap ${{ github.repository }} "$(pwd)"
       - name: Check for update
         id: check
         run: |
